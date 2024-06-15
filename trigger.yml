@@ -1,0 +1,37 @@
+trigger:
+  branches:
+    include:
+      - main  # Adjust this to your main branch name
+
+pool:
+  vmImage: 'macOS-latest'
+
+steps:
+- task: UseFlutterTool@0
+  inputs:
+    flutterVersion: 'stable'
+
+- script: flutter pub get
+  displayName: 'Flutter pub get'
+
+- script: flutter build ios --release
+  displayName: 'Build iOS App'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathtoPublish: '$(System.DefaultWorkingDirectory)/build/ios/iphoneos'
+    artifactName: 'iOSApp'
+
+- script: |
+    dwarfdump --uuid $(System.DefaultWorkingDirectory)/build/ios/iphoneos/Runner.app/Runner
+  displayName: 'Display UUID for dSYM file'
+
+- task: FirebaseToolInstaller@0
+  inputs:
+    version: 'latest'
+
+- script: |
+    $(firebase) crashes:upload-symbols --app YourFirebaseAppId --platform ios --symbols $(System.DefaultWorkingDirectory)/build/ios/iphoneos/Runner.app.dSYM
+  env:
+    FIREBASE_TOKEN: $(FIREBASE_TOKEN)
+  displayName: 'Upload dSYM to Firebase Crashlytics'
